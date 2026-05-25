@@ -1,0 +1,1 @@
+# Prototype-for-Real-Time-Latvian-Sign-Language-Recognition
