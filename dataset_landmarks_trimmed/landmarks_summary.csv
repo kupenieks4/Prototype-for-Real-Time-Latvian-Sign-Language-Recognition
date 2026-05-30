@@ -1,0 +1,16 @@
+label,source_folder,total_videos,saved_npz,good,medium,low,no_landmarks
+A,A,120,120,120,0,0,0
+AA_long,AA_long_new,120,120,120,0,0,0
+plane,plane_new,120,120,119,1,0,0
+U,U,120,120,120,0,0,0
+labdien,labdien_new,120,120,120,0,0,0
+ata,ata_new,120,120,120,0,0,0
+ok,ok,120,120,120,0,0,0
+ne,ne_new,120,120,120,0,0,0
+B,B,120,120,120,0,0,0
+paldies,paldies_new,120,120,120,0,0,0
+es,es,120,119,118,0,1,1
+vajag,vajag_new,120,120,120,0,0,0
+nauda,nauda_new,120,120,120,0,0,0
+tualete,tualete_new,120,120,120,0,0,0
+telefons,telefons_new,120,120,120,0,0,0

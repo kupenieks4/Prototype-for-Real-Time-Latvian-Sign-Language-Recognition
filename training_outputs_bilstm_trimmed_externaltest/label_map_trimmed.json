@@ -1,0 +1,36 @@
+{
+  "label_to_index": {
+    "A": 0,
+    "AA_long": 1,
+    "B": 2,
+    "U": 3,
+    "ata": 4,
+    "es": 5,
+    "labdien": 6,
+    "nauda": 7,
+    "ne": 8,
+    "ok": 9,
+    "paldies": 10,
+    "plane": 11,
+    "telefons": 12,
+    "tualete": 13,
+    "vajag": 14
+  },
+  "index_to_label": {
+    "0": "A",
+    "1": "AA_long",
+    "2": "B",
+    "3": "U",
+    "4": "ata",
+    "5": "es",
+    "6": "labdien",
+    "7": "nauda",
+    "8": "ne",
+    "9": "ok",
+    "10": "paldies",
+    "11": "plane",
+    "12": "telefons",
+    "13": "tualete",
+    "14": "vajag"
+  }
+}
