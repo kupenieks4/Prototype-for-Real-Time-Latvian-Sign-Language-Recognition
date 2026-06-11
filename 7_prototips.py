@@ -9,7 +9,6 @@ import torch.nn as nn
 import mediapipe as mp
 from mediapipe.tasks import python as mp_tasks
 from mediapipe.tasks.python import vision
-
 #iestatijumi
 MODEL_DIR = "training_outputs_bilstm_group_split_15classes"
 MODEL_PATH = os.path.join(MODEL_DIR, "best_bilstm_group_split.pt")
