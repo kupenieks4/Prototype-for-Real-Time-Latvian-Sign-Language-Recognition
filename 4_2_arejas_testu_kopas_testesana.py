@@ -8,7 +8,6 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
-
 #iestatijumi
 TEST_DIR = "dataset_landmarks_test"
 TEST_METADATA = os.path.join(TEST_DIR, "landmarks_metadata.csv")
