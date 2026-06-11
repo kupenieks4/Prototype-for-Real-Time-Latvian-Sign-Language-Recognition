@@ -2,7 +2,6 @@ import os
 import json
 import time
 from collections import deque, Counter
-
 import cv2
 import numpy as np
 import torch
@@ -12,32 +11,27 @@ from mediapipe.tasks import python as mp_tasks
 from mediapipe.tasks.python import vision
 
 #iestatijumi
-MODEL_PATH = "training_outputs_bilstm_trimmed_externaltest/best_bilstm_trimmed_externaltest.pt"
-LABEL_MAP_PATH = "training_outputs_bilstm_trimmed_externaltest/label_map_trimmed.json"
+MODEL_DIR = "training_outputs_bilstm_group_split_15classes"
+MODEL_PATH = os.path.join(MODEL_DIR, "best_bilstm_group_split.pt")
+LABEL_MAP_PATH = os.path.join(MODEL_DIR, "label_map_group_split.json")
 HAND_MODEL_PATH = os.path.join("models", "hand_landmarker.task")
-
 SEQUENCE_LENGTH = 48
 CONF_THRESHOLD = 0.70
 SMOOTHING_WINDOW = 5
-
 CAMERA_INDEX = 0
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480
-
 MAX_NUM_HANDS = 1
 MIN_HAND_DETECTION_CONFIDENCE = 0.30
 MIN_HAND_PRESENCE_CONFIDENCE = 0.30
 MIN_TRACKING_CONFIDENCE = 0.30
-
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-#performance/stability-jam
 INFERENCE_EVERY_N_FRAMES = 2
 MIN_FRAMES_FOR_PREDICTION = 8
 MAX_MISSED_FRAMES = 8
 DISPLAY_HOLD_FRAMES = 10
 
-#Bi-LSTM modelis
+#same modelis no apmacibas
 class BiLSTMClassifier(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_classes, dropout=0.3):
         super().__init__()
@@ -67,8 +61,11 @@ class BiLSTMClassifier(nn.Module):
         out = self.classifier(out)
         return out
 
-#HAND LANDMARKER
+#Hand Landmarker failins
 def create_hand_landmarker():
+    if not os.path.exists(HAND_MODEL_PATH):
+        raise FileNotFoundError(f"Hand landmarker model not found: {HAND_MODEL_PATH}")
+
     base_options = mp_tasks.BaseOptions(model_asset_path=HAND_MODEL_PATH)
 
     options = vision.HandLandmarkerOptions(
@@ -82,6 +79,7 @@ def create_hand_landmarker():
 
     return vision.HandLandmarker.create_from_options(options)
 
+#atrast roku kadra
 def detect_landmarks_in_frame(landmarker, frame_bgr, timestamp_ms):
     frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
@@ -92,12 +90,10 @@ def detect_landmarks_in_frame(landmarker, frame_bgr, timestamp_ms):
         return None
 
     hand = result.hand_landmarks[0]
-    arr = np.array([[lm.x, lm.y, lm.z] for lm in hand], dtype=np.float32)
-    return arr
+    return np.array([[lm.x, lm.y, lm.z] for lm in hand], dtype=np.float32)
 
-#orientieru sagatave, tapat ka apmaciba
+#normalizacija pret plaukstas 0. punktu
 def normalize_sequence_oldnorm(seq):
-    #sekvences forma: (T, 21, 3)
     wrist = seq[:, 0:1, :]
     seq = seq - wrist
 
@@ -108,6 +104,7 @@ def normalize_sequence_oldnorm(seq):
     seq = seq / scale
     return seq.astype(np.float32)
 
+#sekvences parveidosana uz 48 kadriem
 def resample_sequence(seq, target_len=48):
     T = len(seq)
 
@@ -121,12 +118,14 @@ def resample_sequence(seq, target_len=48):
     idxs = np.round(idxs).astype(np.int32)
     return seq[idxs]
 
+#prieksapstrade
 def preprocess_sequence(seq):
     seq = normalize_sequence_oldnorm(seq)
     seq = resample_sequence(seq, SEQUENCE_LENGTH)
     seq = seq.reshape(SEQUENCE_LENGTH, -1).astype(np.float32)
     return seq
 
+#prognozes izlidzinasana
 def get_smoothed_prediction(pred_buffer):
     if len(pred_buffer) == 0:
         return None
@@ -134,19 +133,20 @@ def get_smoothed_prediction(pred_buffer):
     counts = Counter(pred_buffer)
     return counts.most_common(1)[0][0]
 
-#load klasu karti
 if not os.path.exists(LABEL_MAP_PATH):
     raise FileNotFoundError(f"Label map not found: {LABEL_MAP_PATH}")
 
+#load klasu karti
 with open(LABEL_MAP_PATH, "r", encoding="utf-8") as f:
     label_map = json.load(f)
 
 index_to_label = {int(k): v for k, v in label_map["index_to_label"].items()}
 num_classes = len(index_to_label)
 
-print("Loaded labels:", index_to_label)
+print("Loaded labels:")
+for idx, label in index_to_label.items():
+    print(f"  {idx}: {label}")
 
-#labaka modela ielade
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
 
@@ -161,11 +161,11 @@ state_dict = torch.load(MODEL_PATH, map_location=DEVICE)
 model.load_state_dict(state_dict)
 model.eval()
 
-print(f"Model loaded on {DEVICE}")
+print(f"\nModel loaded on {DEVICE}")
 print(f"Using model: {MODEL_PATH}")
+print(f"Using label map: {LABEL_MAP_PATH}")
 print("Using normalization: oldnorm")
 
-#buferi/ekrana parametri
 landmarker = create_hand_landmarker()
 
 sequence_buffer = deque(maxlen=SEQUENCE_LENGTH)
@@ -182,7 +182,6 @@ fps_timer = time.time()
 fps_counter = 0
 fps_value = 0.0
 
-#webcam
 cap = cv2.VideoCapture(CAMERA_INDEX)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
@@ -191,10 +190,10 @@ if not cap.isOpened():
     landmarker.close()
     raise RuntimeError("Nevar atvērt kameru")
 
-cv2.namedWindow("BiLSTM OldNorm Realtime | q = iziet", cv2.WINDOW_NORMAL)
-cv2.resizeWindow("BiLSTM OldNorm Realtime | q = iziet", FRAME_WIDTH, FRAME_HEIGHT)
+WINDOW_NAME = "Prototips demonstresana"
+cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+cv2.resizeWindow(WINDOW_NAME, FRAME_WIDTH, FRAME_HEIGHT)
 
-#main LOOPS
 start_time = time.time()
 
 try:
@@ -265,80 +264,31 @@ try:
         if hold_frames_left > 0:
             hold_frames_left -= 1
 
-        #prognozetas zimes/parejaa izvade
         h, w = frame.shape[:2]
-        cv2.rectangle(frame, (0, 0), (w, 140), (30, 30, 30), -1)
+        cv2.rectangle(frame, (0, 0), (w, 95), (30, 30, 30), -1)
 
         if display_label:
-            cv2.putText(
-                frame,
-                f"{display_label} ({display_conf:.2f})",
-                (15, 40),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1.0,
-                (100, 255, 100),
-                2,
-                cv2.LINE_AA,
-            )
+            cv2.putText(frame, f"{display_label} ({display_conf:.2f})", (15, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.0, (100, 255, 100), 2, cv2.LINE_AA)
 
         if raw_pred_label:
-            cv2.putText(
-                frame,
-                f"raw: {raw_pred_label} ({raw_pred_conf:.2f})",
-                (15, 75),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.72,
-                (255, 255, 255),
-                2,
-                cv2.LINE_AA,
-            )
+            cv2.putText(frame, f"raw: {raw_pred_label} ({raw_pred_conf:.2f})", (15, 75),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 255, 255), 2, cv2.LINE_AA)
 
         if not hand_detected and not display_label:
-            cv2.putText(
-                frame,
-                "Nav rokas",
-                (15, 40),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1.0,
-                (180, 180, 180),
-                2,
-                cv2.LINE_AA,
-            )
+            cv2.putText(frame, "Nav rokas", (15, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.0, (180, 180, 180), 2, cv2.LINE_AA)
 
-        cv2.putText(
-            frame,
-            f"buffer: {len(sequence_buffer)}",
-            (15, h - 45),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
+        cv2.putText(frame, f"buffer: {len(sequence_buffer)}", (15, h - 45),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
 
-        cv2.putText(
-            frame,
-            f"missed: {missed_frames}",
-            (15, h - 20),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
+        cv2.putText(frame, f"missed: {missed_frames}", (15, h - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
 
-        cv2.putText(
-            frame,
-            f"fps: {fps_value:.1f}",
-            (w - 120, h - 20),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
+        cv2.putText(frame, f"fps: {fps_value:.1f}", (w - 120, h - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
 
-        cv2.imshow("BiLSTM OldNorm Realtime | q = iziet", frame)
+        cv2.imshow(WINDOW_NAME, frame)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
