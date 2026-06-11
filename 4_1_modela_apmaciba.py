@@ -9,7 +9,6 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from torch.utils.data import Dataset, DataLoader
-
 #iestatijumi
 DATA_DIR = "dataset_landmarks_trimmed"
 METADATA_PATH = os.path.join(DATA_DIR, "landmarks_metadata.csv")
